@@ -15,6 +15,7 @@ const campaignsRouter = require('./src/routes/campaigns');
 const messagesRouter = require('./src/routes/messages');
 const webhooksRouter = require('./src/routes/webhooks');
 const dashboardRouter = require('./src/routes/dashboard');
+const autoRepliesRouter = require('./src/routes/autoReplies');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +38,7 @@ app.use('/api/campaigns', campaignsRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/auto-replies', autoRepliesRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Sunshine Connect' });

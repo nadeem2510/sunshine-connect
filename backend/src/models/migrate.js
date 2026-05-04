@@ -103,6 +103,16 @@ CREATE INDEX IF NOT EXISTS idx_contacts_opted_out ON contacts(opted_out);
 CREATE INDEX IF NOT EXISTS idx_message_logs_wa_id ON message_logs(wa_message_id);
 CREATE INDEX IF NOT EXISTS idx_message_logs_status ON message_logs(status);
 CREATE INDEX IF NOT EXISTS idx_drip_next_send ON drip_enrollments(next_send_at) WHERE completed = FALSE AND paused = FALSE;
+
+CREATE TABLE IF NOT EXISTS auto_replies (
+  id SERIAL PRIMARY KEY,
+  keyword VARCHAR(255) NOT NULL,
+  response_text TEXT NOT NULL,
+  match_type VARCHAR(20) DEFAULT 'contains',
+  is_active BOOLEAN DEFAULT TRUE,
+  trigger_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 async function initDB() {

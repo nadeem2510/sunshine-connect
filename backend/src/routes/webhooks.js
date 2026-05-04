@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../database');
+const whatsapp = require('../services/whatsapp');
 
 const router = express.Router();
 const VERIFY_TOKEN = process.env.WA_WEBHOOK_VERIFY_TOKEN || 'sunshine_webhook_secret_2024';
@@ -110,6 +111,38 @@ async function handleIncomingMessage(message) {
        VALUES ($1, $2, $3, 'inbound', $4)`,
       [contact.rows[0].id, phone, message.text?.body || '[media]', message.id]
     );
+  }
+
+  // Check auto-replies
+  await checkAutoReply(phone, text);
+}
+
+async function checkAutoReply(phone, text) {
+  try {
+    const rules = await db.query(
+      'SELECT * FROM auto_replies WHERE is_active = TRUE ORDER BY created_at ASC'
+    );
+
+    for (const rule of rules.rows) {
+      const kw = rule.keyword.toLowerCase();
+      let matched = false;
+
+      if (rule.match_type === 'exact') matched = text === kw;
+      else if (rule.match_type === 'starts_with') matched = text.startsWith(kw);
+      else matched = text.includes(kw); // contains (default)
+
+      if (matched) {
+        await whatsapp.sendTextMessage({ phone, text: rule.response_text });
+        await db.query(
+          'UPDATE auto_replies SET trigger_count = trigger_count + 1 WHERE id = $1',
+          [rule.id]
+        );
+        console.log(`[AutoReply] Matched "${rule.keyword}" for ${phone}`);
+        break; // Only first match fires
+      }
+    }
+  } catch (err) {
+    console.error('[AutoReply] Error:', err.message);
   }
 }
 

@@ -7,7 +7,8 @@ const NAV = [
   { to: '/templates',  label: 'Templates',    icon: '📝' },
   { to: '/campaigns',  label: 'Campaigns',    icon: '🚀' },
   { to: '/messages',   label: 'Message Logs', icon: '📨' },
-  { to: '/inbox',      label: 'Inbox',        icon: '💬' },
+  { to: '/inbox',       label: 'Inbox',        icon: '💬' },
+  { to: '/auto-reply', label: 'Auto-Reply',   icon: '🤖' },
   { to: '/settings',   label: 'Settings',     icon: '⚙️' },
 ];
 
