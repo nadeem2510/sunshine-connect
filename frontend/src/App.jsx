@@ -6,6 +6,7 @@ import Groups from './pages/Groups';
 import Templates from './pages/Templates';
 import Campaigns from './pages/Campaigns';
 import MessageLogs from './pages/MessageLogs';
+import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="templates" element={<Templates />} />
         <Route path="campaigns" element={<Campaigns />} />
         <Route path="messages" element={<MessageLogs />} />
+        <Route path="inbox" element={<Inbox />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>

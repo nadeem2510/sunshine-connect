@@ -121,4 +121,79 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// Inbox - all inbound messages grouped by contact
+router.get('/inbox', async (req, res) => {
+  try {
+    const conversations = await db.query(
+      `SELECT
+        c.id AS contact_id, c.name AS contact_name, c.phone,
+        c.opted_out,
+        COUNT(ml.id) FILTER (WHERE ml.status = 'inbound') AS unread_count,
+        MAX(ml.queued_at) FILTER (WHERE ml.status = 'inbound') AS last_message_at,
+        (SELECT message_body FROM message_logs
+         WHERE contact_id = c.id AND status = 'inbound'
+         ORDER BY queued_at DESC LIMIT 1) AS last_message
+       FROM contacts c
+       INNER JOIN message_logs ml ON ml.contact_id = c.id AND ml.status = 'inbound'
+       GROUP BY c.id, c.name, c.phone, c.opted_out
+       ORDER BY last_message_at DESC NULLS LAST`
+    );
+    res.json(conversations.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get full conversation thread for a contact
+router.get('/inbox/:contactId', async (req, res) => {
+  try {
+    const { contactId } = req.params;
+    const contact = await db.query('SELECT * FROM contacts WHERE id = $1', [contactId]);
+    if (!contact.rows[0]) return res.status(404).json({ error: 'Contact not found' });
+
+    const thread = await db.query(
+      `SELECT id, status, message_body, queued_at, sent_at, wa_message_id
+       FROM message_logs
+       WHERE contact_id = $1
+         AND status IN ('inbound', 'sent', 'delivered', 'read', 'queued', 'failed')
+       ORDER BY queued_at ASC
+       LIMIT 200`,
+      [contactId]
+    );
+    res.json({ contact: contact.rows[0], messages: thread.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reply to a contact with a free-text message
+router.post('/inbox/:contactId/reply', async (req, res) => {
+  try {
+    const { contactId } = req.params;
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'text is required' });
+
+    const contact = await db.query('SELECT * FROM contacts WHERE id = $1', [contactId]);
+    if (!contact.rows[0]) return res.status(404).json({ error: 'Contact not found' });
+    if (contact.rows[0].opted_out) return res.status(400).json({ error: 'Contact has opted out' });
+
+    const log = await db.query(
+      `INSERT INTO message_logs (contact_id, phone, message_body, status)
+       VALUES ($1, $2, $3, 'queued') RETURNING *`,
+      [contactId, contact.rows[0].phone, text.trim()]
+    );
+
+    const waResult = await whatsapp.sendTextMessage({ phone: contact.rows[0].phone, text: text.trim() });
+
+    await db.query(
+      `UPDATE message_logs SET status = 'sent', wa_message_id = $1, sent_at = NOW() WHERE id = $2`,
+      [waResult.messages?.[0]?.id, log.rows[0].id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
