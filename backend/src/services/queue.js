@@ -6,14 +6,22 @@ let messageQueue;
 let dripQueue;
 
 function initQueue() {
-  const redisConfig = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT) || 6379,
-    password: process.env.REDIS_PASSWORD || undefined,
-  };
+  const redisUrl = process.env.REDIS_URL;
+  const redisConfig = redisUrl
+    ? { url: redisUrl }
+    : {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+      };
 
-  messageQueue = new Bull('messages', { redis: redisConfig });
-  dripQueue = new Bull('drip-scheduler', { redis: redisConfig });
+  if (redisUrl) {
+    messageQueue = new Bull('messages', redisUrl);
+    dripQueue = new Bull('drip-scheduler', redisUrl);
+  } else {
+    messageQueue = new Bull('messages', { redis: redisConfig });
+    dripQueue = new Bull('drip-scheduler', { redis: redisConfig });
+  }
 
   // Process outgoing messages (with concurrency 1 to respect rate limits)
   messageQueue.process(1, processMessage);
