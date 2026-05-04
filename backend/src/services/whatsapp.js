@@ -1,0 +1,142 @@
+const axios = require('axios');
+
+const BASE_URL = `https://graph.facebook.com/${process.env.WA_API_VERSION || 'v19.0'}`;
+const PHONE_ID = process.env.WA_PHONE_NUMBER_ID;
+const TOKEN = process.env.WA_ACCESS_TOKEN;
+const WABA_ID = process.env.WA_BUSINESS_ACCOUNT_ID;
+
+function getHeaders() {
+  return { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+}
+
+// Random delay between min-max ms (anti-bot randomization)
+function randomDelay(min = 1000, max = 5000) {
+  const ms = Math.floor(Math.random() * (max - min + 1)) + min;
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function sendTemplateMessage({ phone, templateName, language = 'en', variables = [] }) {
+  await randomDelay(1000, 4000);
+
+  const components = variables.length > 0
+    ? [{ type: 'body', parameters: variables.map(v => ({ type: 'text', text: String(v) })) }]
+    : [];
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: phone.startsWith('+') ? phone.slice(1) : phone,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: language },
+      components,
+    },
+  };
+
+  const response = await axios.post(
+    `${BASE_URL}/${PHONE_ID}/messages`,
+    payload,
+    { headers: getHeaders() }
+  );
+
+  return response.data;
+}
+
+async function sendTextMessage({ phone, text }) {
+  await randomDelay(1000, 3000);
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: phone.startsWith('+') ? phone.slice(1) : phone,
+    type: 'text',
+    text: { body: text, preview_url: false },
+  };
+
+  const response = await axios.post(
+    `${BASE_URL}/${PHONE_ID}/messages`,
+    payload,
+    { headers: getHeaders() }
+  );
+
+  return response.data;
+}
+
+async function submitTemplateForApproval(template) {
+  const components = [];
+
+  if (template.header_text) {
+    components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
+  }
+
+  components.push({ type: 'BODY', text: template.body_text });
+
+  if (template.footer_text) {
+    components.push({ type: 'FOOTER', text: template.footer_text });
+  }
+
+  // Sanitize template name: lowercase, underscores, max 512 chars
+  const metaName = template.name
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 60);
+
+  const payload = {
+    name: metaName,
+    category: template.category || 'MARKETING',
+    language: template.language || 'en',
+    components,
+  };
+
+  const response = await axios.post(
+    `${BASE_URL}/${WABA_ID}/message_templates`,
+    payload,
+    { headers: getHeaders() }
+  );
+
+  return { ...response.data, name: metaName };
+}
+
+async function getHealthStatus() {
+  if (!TOKEN || !PHONE_ID) {
+    return { status: 'not_configured', api_connected: false, message: 'API credentials not set in .env' };
+  }
+
+  try {
+    const [phoneInfo, wabaInfo] = await Promise.all([
+      axios.get(`${BASE_URL}/${PHONE_ID}?fields=display_phone_number,quality_rating,code_verification_status,name_status`, { headers: getHeaders() }),
+      axios.get(`${BASE_URL}/${WABA_ID}?fields=currency,message_template_namespace`, { headers: getHeaders() }).catch(() => ({ data: {} })),
+    ]);
+
+    return {
+      status: 'ok',
+      api_connected: true,
+      phone_number: phoneInfo.data.display_phone_number,
+      quality_rating: phoneInfo.data.quality_rating,
+      name_status: phoneInfo.data.name_status,
+      code_status: phoneInfo.data.code_verification_status,
+      currency: wabaInfo.data.currency,
+      api_version: process.env.WA_API_VERSION || 'v19.0',
+    };
+  } catch (err) {
+    const message = err.response?.data?.error?.message || err.message;
+    return { status: 'error', api_connected: false, message };
+  }
+}
+
+async function getTemplatesFromMeta() {
+  const response = await axios.get(
+    `${BASE_URL}/${WABA_ID}/message_templates?fields=name,status,category,language,components`,
+    { headers: getHeaders() }
+  );
+  return response.data.data || [];
+}
+
+module.exports = {
+  sendTemplateMessage,
+  sendTextMessage,
+  submitTemplateForApproval,
+  getHealthStatus,
+  getTemplatesFromMeta,
+  randomDelay,
+};
