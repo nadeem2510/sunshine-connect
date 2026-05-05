@@ -19,7 +19,7 @@ const FOOTER = null; // Footer removed — Meta rejects MARKETING templates with
 
 const TEMPLATES = [
   {
-    name: 'contractor_health_partner',
+    name: 'sh_contractor_health_partner',
     header_text: 'तुमचे हेल्थ पार्टनर',
     body_text: `🙏 {{1}} जी,
 
@@ -32,7 +32,7 @@ const TEMPLATES = [
 _आपले आरोग्य, आमची प्राथमिकता!_`,
   },
   {
-    name: 'esic_empanelment_news',
+    name: 'sh_esic_empanelment_news',
     header_text: 'ESIC कॅशलेस सुविधा',
     body_text: `🏥✨ *अत्यंत आनंदाची बातमी!*
 
@@ -45,7 +45,7 @@ _आपले आरोग्य, आमची प्राथमिकता!_`
 ही माहिती तुमच्या सर्व कामगारांपर्यंत पोहोचवा.`,
   },
   {
-    name: 'contractor_care_message',
+    name: 'sh_contractor_care_message',
     header_text: 'तुमची चिंता, आमची जबाबदारी',
     body_text: `😟 {{1}} जी,
 
@@ -56,7 +56,7 @@ _आपले आरोग्य, आमची प्राथमिकता!_`
 सनशाईन हॉस्पिटलमध्ये तुमचा कामगार आल्यावर त्याला *उत्तम आणि जलद उपचार* मिळतील, जेणेकरून तो लवकर बरा होऊन कामावर परतेल. 🤝`,
   },
   {
-    name: 'industrial_emergency_24x7',
+    name: 'sh_industrial_emergency_24x7',
     header_text: '२४ तास इमर्जन्सी सेवा',
     body_text: `🚨 *औद्योगिक अपघात किंवा इमर्जन्सी?*
 
@@ -67,7 +67,7 @@ _आपले आरोग्य, आमची प्राथमिकता!_`
 सनशाईन हॉस्पिटलचा *ट्रॉमा केअर विभाग रात्रंदिवस (24x7)* कामगारांच्या सेवेसाठी उघडा आहे. 🚑`,
   },
   {
-    name: 'ambulance_service_info',
+    name: 'sh_ambulance_service_info',
     header_text: 'मोफत रुग्णवाहिका सुविधा',
     body_text: `🚑 {{1}} जी,
 
@@ -80,7 +80,7 @@ _आपले आरोग्य, आमची प्राथमिकता!_`
 _वेळेवर उपचार, हेच आमचे ध्येय!_`,
   },
   {
-    name: 'esic_documents_required',
+    name: 'sh_esic_documents_required',
     header_text: 'ESIC साठी लागणारी कागदपत्रे',
     body_text: `📄 {{1}} जी,
 
@@ -94,7 +94,7 @@ _वेळेवर उपचार, हेच आमचे ध्येय!_`,
 बाकीची सर्व प्रक्रियेची जबाबदारी आमची!`,
   },
   {
-    name: 'multispeciality_hospital_info',
+    name: 'sh_multispeciality_hospital_info',
     header_text: 'NABH मान्यताप्राप्त हॉस्पिटल',
     body_text: `🏥 {{1}} जी,
 
@@ -110,7 +110,7 @@ _वेळेवर उपचार, हेच आमचे ध्येय!_`,
 सर्व सुविधा *एकाच छताखाली* उपलब्ध आहेत!`,
   },
   {
-    name: 'family_esic_coverage',
+    name: 'sh_family_esic_coverage',
     header_text: 'कुटुंबाचीही काळजी',
     body_text: `👨‍👩‍👧‍👦 {{1}} जी,
 
@@ -126,7 +126,7 @@ ESIC च्या माध्यमातून फक्त कामगार
 ही माहिती नक्की तुमच्या कामगारांपर्यंत पोहोचवा! 🙏`,
   },
   {
-    name: 'free_health_camp_offer',
+    name: 'sh_free_health_camp_offer',
     header_text: 'मोफत आरोग्य शिबीर',
     body_text: `🩺 {{1}} जी,
 
@@ -141,7 +141,7 @@ ESIC च्या माध्यमातून फक्त कामगार
 _कॅम्पच्या बुकिंगसाठी आजच कॉल करा!_ 📞`,
   },
   {
-    name: 'contractor_special_helpdesk',
+    name: 'sh_contractor_special_helpdesk',
     header_text: 'स्पेशल कॉन्ट्रॅक्टर हेल्पडेस्क',
     body_text: `📞 {{1}} जी,
 
@@ -154,7 +154,7 @@ _कॅम्पच्या बुकिंगसाठी आजच कॉल 
 ✅ *तुम्हाला रांगेत थांबण्याची गरज नाही!* 🙏`,
   },
   {
-    name: 'esic_no_hidden_charges',
+    name: 'sh_esic_no_hidden_charges',
     header_text: 'शून्य छुपे खर्च',
     body_text: `💡 {{1}} जी,
 
@@ -167,7 +167,7 @@ _कॅम्पच्या बुकिंगसाठी आजच कॉल 
 _पारदर्शकता हाच आमचा पाया आहे._`,
   },
   {
-    name: 'seasonal_health_alert',
+    name: 'sh_seasonal_health_alert',
     header_text: 'ऋतूबदल आरोग्य सतर्कता',
     body_text: `🌤️ {{1}} जी,
 
@@ -182,7 +182,7 @@ _पारदर्शकता हाच आमचा पाया आहे._`
 कोणालाही ताप किंवा अशक्तपणा जाणवल्यास तात्काळ *सनशाईन हॉस्पिटलमध्ये* पाठवून द्या. 🏥`,
   },
   {
-    name: 'contractor_feedback_thanks',
+    name: 'sh_contractor_feedback_thanks',
     header_text: 'तुमचा विश्वास, आमची ताकद',
     body_text: `🙏 {{1}} जी,
 
@@ -195,7 +195,7 @@ _पारदर्शकता हाच आमचा पाया आहे._`
 आम्ही दर्जेदार सेवा देण्यासाठी नेहमी कटिबद्ध आहोत.`,
   },
   {
-    name: 'save_emergency_contact',
+    name: 'sh_save_emergency_contact',
     header_text: 'इमर्जन्सी नंबर सेव्ह करा',
     body_text: `📱 {{1}} जी,
 
@@ -208,7 +208,7 @@ _पारदर्शकता हाच आमचा पाया आहे._`
 रात्री-अपरात्री कधीही गरज पडल्यास *हक्काने कॉल करा.* 🙏`,
   },
   {
-    name: 'permanent_health_partnership',
+    name: 'sh_permanent_health_partnership',
     header_text: 'कायमस्वरूपी भागीदारी',
     body_text: `🤝 {{1}} जी,
 

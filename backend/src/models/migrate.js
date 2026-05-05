@@ -135,6 +135,24 @@ async function runMigrations(client) {
   await client.query(`
     ALTER TABLE templates ADD COLUMN IF NOT EXISTS header_image_url TEXT
   `);
+  // Add scheduled_campaigns table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS scheduled_campaigns (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      template_id INTEGER REFERENCES templates(id) ON DELETE SET NULL,
+      group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+      schedule_time TIME NOT NULL DEFAULT '21:00:00',
+      timezone VARCHAR(50) DEFAULT 'Asia/Kolkata',
+      is_daily BOOLEAN DEFAULT TRUE,
+      is_active BOOLEAN DEFAULT FALSE,
+      last_run_at TIMESTAMPTZ,
+      next_run_at TIMESTAMPTZ,
+      run_count INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 }
 
 async function seedDefaultGroups(client) {

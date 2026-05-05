@@ -170,4 +170,27 @@ router.post('/:id/preview', async (req, res) => {
   }
 });
 
+// Sync approval status from Meta
+router.post('/sync-meta', async (req, res) => {
+  try {
+    const metaTemplates = await whatsapp.getTemplatesFromMeta();
+    let updated = 0;
+    for (const mt of metaTemplates) {
+      const status = mt.status === 'APPROVED' ? 'approved'
+        : mt.status === 'REJECTED' ? 'rejected'
+        : mt.status === 'PENDING' ? 'pending' : null;
+      if (!status) continue;
+      const r = await db.query(`
+        UPDATE templates SET status = $1, updated_at = NOW()
+        WHERE (meta_template_name = $2 OR name = $2) AND status != $1
+        RETURNING id
+      `, [status, mt.name]);
+      updated += r.rowCount;
+    }
+    res.json({ success: true, meta_count: metaTemplates.length, updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -9,6 +9,7 @@ const NAV = [
   { to: '/messages',   label: 'Message Logs', icon: '📨' },
   { to: '/inbox',       label: 'Inbox',        icon: '💬' },
   { to: '/auto-reply', label: 'Auto-Reply',   icon: '🤖' },
+  { to: '/scheduled',  label: 'Scheduled',    icon: '⏰' },
   { to: '/settings',   label: 'Settings',     icon: '⚙️' },
 ];
 
