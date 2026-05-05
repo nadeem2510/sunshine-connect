@@ -170,6 +170,18 @@ router.post('/:id/preview', async (req, res) => {
   }
 });
 
+// Debug: get raw Meta template components
+router.get('/meta-components/:name', async (req, res) => {
+  try {
+    const templates = await whatsapp.getTemplatesFromMeta();
+    const t = templates.find(t => t.name === req.params.name);
+    if (!t) return res.status(404).json({ error: 'Template not found on Meta' });
+    res.json(t);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Sync approval status from Meta
 router.post('/sync-meta', async (req, res) => {
   try {
