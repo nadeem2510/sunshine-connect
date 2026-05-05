@@ -33,11 +33,21 @@ async function uploadImageAsMedia(imageUrl) {
   form.append('type', contentType);
   form.append('file', imgBuffer, { filename: 'header.png', contentType });
 
-  const resp = await axios.post(
-    `${BASE_URL}/${PHONE_ID}/media`,
-    form,
-    { headers: { Authorization: `Bearer ${TOKEN}`, ...form.getHeaders() } }
-  );
+  console.log('[WA Media] Uploading to PHONE_ID/media:', `${BASE_URL}/${PHONE_ID}/media`);
+  let resp;
+  try {
+    resp = await axios.post(
+      `${BASE_URL}/${PHONE_ID}/media`,
+      form,
+      { headers: { Authorization: `Bearer ${TOKEN}`, ...form.getHeaders() } }
+    );
+  } catch (err) {
+    const metaErr = err.response?.data?.error || {};
+    console.error('[WA Media] Upload failed:', JSON.stringify(err.response?.data || {}));
+    const e = new Error(`Media upload failed: ${metaErr.message || err.message} (code ${metaErr.code})`);
+    e.response = err.response;
+    throw e;
+  }
 
   const mediaId = resp.data.id;
   console.log('[WA Media] Uploaded image, media_id:', mediaId);

@@ -63,7 +63,11 @@ app.post('/api/test-media', async (req, res) => {
     const mediaId = await whatsapp.uploadImageAsMedia(imageUrl);
     res.json({ success: true, media_id: mediaId });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      meta_detail: err.response?.data || null,
+    });
   }
 });
 
