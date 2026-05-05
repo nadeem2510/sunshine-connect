@@ -33,11 +33,21 @@ async function sendTemplateMessage({ phone, templateName, language = 'en', varia
     },
   };
 
-  const response = await axios.post(
-    `${BASE_URL}/${PHONE_ID}/messages`,
-    payload,
-    { headers: getHeaders() }
-  );
+  console.log('[WA Send] Payload:', JSON.stringify(payload));
+
+  let response;
+  try {
+    response = await axios.post(
+      `${BASE_URL}/${PHONE_ID}/messages`,
+      payload,
+      { headers: getHeaders() }
+    );
+  } catch (err) {
+    const metaErr = err.response?.data?.error || {};
+    const msg = metaErr.message || err.message;
+    console.error('[WA Send] Failed:', JSON.stringify(err.response?.data || {}));
+    throw new Error(`Meta: ${msg} (code ${metaErr.code || ''}, subcode ${metaErr.error_subcode || ''})`);
+  }
 
   return response.data;
 }
