@@ -181,9 +181,16 @@ async function submitTemplateForApproval(template) {
   const components = [];
 
   if (template.header_image_url) {
-    // IMAGE header — upload image to get handle, then use it as example
+    // IMAGE header — try Upload API first, fall back to Media API
     try {
-      const handle = await uploadImageForTemplate(template.header_image_url);
+      let handle;
+      try {
+        handle = await uploadImageForTemplate(template.header_image_url);
+      } catch (uploadErr) {
+        console.warn('[Meta Template] Handle upload failed, trying media API:', uploadErr.message);
+        // Fallback: upload via media API and use media_id as handle
+        handle = await uploadImageAsMedia(template.header_image_url);
+      }
       components.push({
         type: 'HEADER',
         format: 'IMAGE',
@@ -310,5 +317,6 @@ module.exports = {
   getHealthStatus,
   getTemplatesFromMeta,
   uploadImageForTemplate,
+  uploadImageAsMedia,
   randomDelay,
 };
