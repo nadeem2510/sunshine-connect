@@ -9,6 +9,42 @@ function getHeaders() {
   return { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
 }
 
+// Cache media_id for 25 days (WhatsApp media IDs expire in 30 days)
+const mediaIdCache = new Map(); // url -> { id, cachedAt }
+const MEDIA_CACHE_MS = 25 * 24 * 60 * 60 * 1000;
+
+async function uploadImageAsMedia(imageUrl) {
+  // Return cached media_id if still valid
+  const cached = mediaIdCache.get(imageUrl);
+  if (cached && Date.now() - cached.cachedAt < MEDIA_CACHE_MS) {
+    console.log('[WA Media] Using cached media_id:', cached.id);
+    return cached.id;
+  }
+
+  // Download image
+  const imgResp = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+  const imgBuffer = Buffer.from(imgResp.data);
+  const contentType = imgResp.headers['content-type'] || 'image/png';
+
+  // Upload to WhatsApp media endpoint (multipart/form-data)
+  const FormData = require('form-data');
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('type', contentType);
+  form.append('file', imgBuffer, { filename: 'header.png', contentType });
+
+  const resp = await axios.post(
+    `${BASE_URL}/${PHONE_ID}/media`,
+    form,
+    { headers: { Authorization: `Bearer ${TOKEN}`, ...form.getHeaders() } }
+  );
+
+  const mediaId = resp.data.id;
+  console.log('[WA Media] Uploaded image, media_id:', mediaId);
+  mediaIdCache.set(imageUrl, { id: mediaId, cachedAt: Date.now() });
+  return mediaId;
+}
+
 // Random delay between min-max ms (anti-bot randomization)
 function randomDelay(min = 1000, max = 5000) {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min;
@@ -20,12 +56,17 @@ async function sendTemplateMessage({ phone, templateName, language = 'en', varia
 
   const components = [];
 
-  // Add image header component if template has one
+  // Add image header component using WhatsApp media_id (more reliable than link)
   if (headerImageUrl) {
-    components.push({
-      type: 'header',
-      parameters: [{ type: 'image', image: { link: headerImageUrl } }],
-    });
+    try {
+      const mediaId = await uploadImageAsMedia(headerImageUrl);
+      components.push({
+        type: 'header',
+        parameters: [{ type: 'image', image: { id: mediaId } }],
+      });
+    } catch (err) {
+      console.error('[WA Send] Image upload failed, skipping header:', err.message);
+    }
   }
 
   // Add body component if template has variables
