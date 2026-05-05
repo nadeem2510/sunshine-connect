@@ -86,7 +86,11 @@ export default function Templates() {
                 </div>
               </div>
 
+              {t.header_image_url && (
+                <img src={t.header_image_url} alt="header" className="w-full rounded-lg mb-2 object-cover" style={{ maxHeight: '100px' }} />
+              )}
               <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 font-mono leading-relaxed mb-3 min-h-16">
+                {t.header_text && !t.header_image_url && <div className="font-bold mb-1">{t.header_text}</div>}
                 {t.body_text}
               </div>
 
@@ -262,15 +266,37 @@ function TemplatePreview({ template, onClose }) {
           <label className="label">WhatsApp Preview</label>
           <div className="bg-[#e5ddd5] rounded-xl p-4">
             <div className="max-w-xs ml-auto">
-              <div className="bg-white rounded-2xl rounded-tr-none px-4 py-3 shadow-sm">
-                {template.header_text && (
-                  <div className="font-bold text-sm text-gray-900 mb-2">{template.header_text}</div>
+              <div className="bg-white rounded-2xl rounded-tr-none shadow-sm overflow-hidden">
+                {/* Image header */}
+                {template.header_image_url && (
+                  <img
+                    src={template.header_image_url}
+                    alt="Template header"
+                    className="w-full object-cover"
+                    style={{ maxHeight: '180px' }}
+                  />
                 )}
-                <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{preview}</p>
-                {template.footer_text && (
-                  <p className="text-xs text-gray-400 mt-2 border-t pt-2">{template.footer_text}</p>
-                )}
-                <div className="text-right text-xs text-gray-400 mt-1">12:00 ✓✓</div>
+                <div className="px-4 py-3">
+                  {/* Text header (if no image) */}
+                  {!template.header_image_url && template.header_text && (
+                    <div className="font-bold text-sm text-gray-900 mb-2">{template.header_text}</div>
+                  )}
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{preview}</p>
+                  {template.footer_text && (
+                    <p className="text-xs text-gray-400 mt-2 border-t pt-2">{template.footer_text}</p>
+                  )}
+                  {/* Buttons preview */}
+                  {Array.isArray(template.buttons) && template.buttons.length > 0 && (
+                    <div className="mt-3 border-t pt-2 space-y-1">
+                      {template.buttons.map((btn, i) => (
+                        <div key={i} className="text-center text-xs font-medium text-blue-500 py-1 border border-blue-100 rounded-lg">
+                          {btn.type === 'PHONE_NUMBER' ? '📞 ' : '🔗 '}{btn.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-right text-xs text-gray-400 mt-1">12:00 ✓✓</div>
+                </div>
               </div>
             </div>
           </div>
