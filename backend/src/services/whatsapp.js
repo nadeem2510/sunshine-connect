@@ -61,10 +61,58 @@ async function sendTextMessage({ phone, text }) {
   return response.data;
 }
 
+async function uploadImageForTemplate(imageUrl) {
+  // Download the image and upload to Meta to get a permanent handle
+  const imgResp = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+  const imgBuffer = Buffer.from(imgResp.data);
+  const contentType = imgResp.headers['content-type'] || 'image/jpeg';
+  const fileSize = imgBuffer.length;
+
+  // Step 1: Create upload session
+  const sessionResp = await axios.post(
+    `https://graph.facebook.com/v19.0/${WABA_ID}/uploads`,
+    null,
+    {
+      params: { file_length: fileSize, file_type: contentType, access_token: TOKEN },
+    }
+  );
+  const uploadId = sessionResp.data.id;
+
+  // Step 2: Upload binary data
+  const uploadResp = await axios.post(
+    `https://graph.facebook.com/v19.0/${uploadId}`,
+    imgBuffer,
+    {
+      headers: {
+        Authorization: `OAuth ${TOKEN}`,
+        'Content-Type': contentType,
+        file_offset: 0,
+      },
+    }
+  );
+
+  return uploadResp.data.h; // The handle
+}
+
 async function submitTemplateForApproval(template) {
   const components = [];
 
-  if (template.header_text) {
+  if (template.header_image_url) {
+    // IMAGE header — upload image to get handle, then use it as example
+    try {
+      const handle = await uploadImageForTemplate(template.header_image_url);
+      components.push({
+        type: 'HEADER',
+        format: 'IMAGE',
+        example: { header_handle: [handle] },
+      });
+    } catch (err) {
+      console.error('[Meta] Image upload failed, falling back to text header:', err.message);
+      if (template.header_text) {
+        components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
+      }
+    }
+  } else if (template.header_text) {
     components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
   }
 

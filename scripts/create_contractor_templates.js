@@ -5,12 +5,17 @@
 
 const API = process.env.API_URL || 'https://sunshine-connect-production.up.railway.app';
 
+// Set a publicly accessible image URL for the image header
+// e.g. hospital logo hosted on your website or Google Drive public link
+// Set to null to use text header instead
+const HEADER_IMAGE_URL = process.env.HEADER_IMAGE_URL || null;
+
 const BUTTONS = [
   { type: 'PHONE_NUMBER', text: 'कॉल करा', value: '+919850633786' },
   { type: 'URL', text: 'हॉस्पिटल शोधा', value: 'https://maps.google.com/?q=Sunshine+Hospital+Chhatrapati+Sambhajinagar' },
 ];
 
-const FOOTER = 'सनशाईन हॉस्पिटल | NABH Accredited | 📞 9130561222';
+const FOOTER = null; // Footer removed — Meta rejects MARKETING templates with footer
 
 const TEMPLATES = [
   {
@@ -229,9 +234,11 @@ async function createTemplate(tmpl) {
       name: tmpl.name,
       category: 'MARKETING',
       language: 'mr',
-      header_text: tmpl.header_text,
+      // If image URL set, use image header; otherwise use text header
+      ...(HEADER_IMAGE_URL
+        ? { header_image_url: HEADER_IMAGE_URL }
+        : { header_text: tmpl.header_text }),
       body_text: tmpl.body_text,
-      footer_text: FOOTER,
       buttons: BUTTONS,
     }),
   });
@@ -250,9 +257,26 @@ async function submitTemplate(id) {
   return data;
 }
 
+async function deleteExistingDrafts() {
+  // Get all templates and delete drafts with matching names
+  const res = await fetch(`${API}/api/templates`);
+  const all = await res.json();
+  const names = new Set(TEMPLATES.map(t => t.name));
+  const toDelete = all.filter(t => names.has(t.name) && (t.status === 'draft' || t.status === 'pending'));
+  for (const t of toDelete) {
+    await fetch(`${API}/api/templates/${t.id}`, { method: 'DELETE' });
+    console.log(`  🗑️  Deleted old draft: ${t.name} (id=${t.id})`);
+  }
+}
+
 async function run() {
   console.log(`\n🚀 Creating ${TEMPLATES.length} Marathi contractor templates...\n`);
   console.log(`API: ${API}\n`);
+
+  // Clean up old failed drafts first
+  console.log('🧹 Cleaning up old drafts...');
+  await deleteExistingDrafts();
+  console.log('');
 
   const results = [];
 

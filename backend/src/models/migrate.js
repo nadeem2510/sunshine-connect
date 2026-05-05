@@ -131,6 +131,10 @@ async function runMigrations(client) {
   await client.query(`
     ALTER TABLE templates ADD COLUMN IF NOT EXISTS buttons JSONB DEFAULT '[]'
   `);
+  // Add header_image_url column to templates if not exists
+  await client.query(`
+    ALTER TABLE templates ADD COLUMN IF NOT EXISTS header_image_url TEXT
+  `);
 }
 
 async function seedDefaultGroups(client) {
