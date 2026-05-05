@@ -89,7 +89,20 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete template
+// Delete template from Meta + DB
+router.delete('/:id/meta', async (req, res) => {
+  try {
+    const tmpl = await db.query('SELECT * FROM templates WHERE id = $1', [req.params.id]);
+    if (!tmpl.rows[0]) return res.status(404).json({ error: 'Not found' });
+    const deleted = await whatsapp.deleteTemplateFromMeta(tmpl.rows[0].meta_template_name || tmpl.rows[0].name);
+    await db.query('DELETE FROM templates WHERE id = $1', [req.params.id]);
+    res.json({ success: true, deleted_from_meta: deleted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete template (DB only)
 router.delete('/:id', async (req, res) => {
   try {
     const result = await db.query('DELETE FROM templates WHERE id = $1 RETURNING id', [req.params.id]);

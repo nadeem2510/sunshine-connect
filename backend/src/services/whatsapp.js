@@ -169,6 +169,21 @@ async function submitTemplateForApproval(template) {
   return { ...response.data, name: metaName };
 }
 
+async function deleteTemplateFromMeta(templateName) {
+  try {
+    const metaName = templateName.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').slice(0, 60);
+    await axios.delete(
+      `${BASE_URL}/${WABA_ID}/message_templates?name=${metaName}`,
+      { headers: getHeaders() }
+    );
+    return true;
+  } catch (err) {
+    const msg = err.response?.data?.error?.message || err.message;
+    console.warn(`[Meta] Delete template "${templateName}" failed: ${msg}`);
+    return false;
+  }
+}
+
 async function getHealthStatus() {
   if (!TOKEN || !PHONE_ID) {
     return { status: 'not_configured', api_connected: false, message: 'API credentials not set in .env' };
@@ -208,6 +223,7 @@ module.exports = {
   sendTemplateMessage,
   sendTextMessage,
   submitTemplateForApproval,
+  deleteTemplateFromMeta,
   getHealthStatus,
   getTemplatesFromMeta,
   randomDelay,

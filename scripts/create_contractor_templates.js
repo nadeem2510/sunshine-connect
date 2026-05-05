@@ -8,7 +8,7 @@ const API = process.env.API_URL || 'https://sunshine-connect-production.up.railw
 // Set a publicly accessible image URL for the image header
 // e.g. hospital logo hosted on your website or Google Drive public link
 // Set to null to use text header instead
-const HEADER_IMAGE_URL = process.env.HEADER_IMAGE_URL || null;
+const HEADER_IMAGE_URL = process.env.HEADER_IMAGE_URL || 'https://sunshine-connect-production.up.railway.app/images/esic_banner.png';
 
 const BUTTONS = [
   { type: 'PHONE_NUMBER', text: 'कॉल करा', value: '+919850633786' },
@@ -221,8 +221,7 @@ _पारदर्शकता हाच आमचा पाया आहे._`
 कधीही हॉस्पिटलला भेट द्या — चहा पिऊन आपण कामगारांच्या आरोग्याविषयी सविस्तर चर्चा करू.
 
 _तुमचा नम्र,_
-*डॉ. नदीम शेख*
-सनशाईन हॉस्पिटल 🏥`,
+*सनशाईन हॉस्पिटल* 🏥`,
   },
 ];
 
@@ -258,14 +257,15 @@ async function submitTemplate(id) {
 }
 
 async function deleteExistingDrafts() {
-  // Get all templates and delete drafts with matching names
   const res = await fetch(`${API}/api/templates`);
   const all = await res.json();
   const names = new Set(TEMPLATES.map(t => t.name));
-  const toDelete = all.filter(t => names.has(t.name) && (t.status === 'draft' || t.status === 'pending'));
+  const toDelete = all.filter(t => names.has(t.name));
   for (const t of toDelete) {
-    await fetch(`${API}/api/templates/${t.id}`, { method: 'DELETE' });
-    console.log(`  🗑️  Deleted old draft: ${t.name} (id=${t.id})`);
+    // Delete from Meta first (removes the pending/approved template on Meta's side)
+    await fetch(`${API}/api/templates/${t.id}/meta`, { method: 'DELETE' });
+    console.log(`  🗑️  Deleted from Meta + DB: ${t.name} (id=${t.id})`);
+    await new Promise(r => setTimeout(r, 1000));
   }
 }
 
