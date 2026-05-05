@@ -192,11 +192,14 @@ router.post('/sync-meta', async (req, res) => {
         : mt.status === 'REJECTED' ? 'rejected'
         : mt.status === 'PENDING' ? 'pending' : null;
       if (!status) continue;
+      const hasImageHeader = (mt.components || []).some(
+        c => c.type === 'HEADER' && c.format === 'IMAGE'
+      );
       const r = await db.query(`
-        UPDATE templates SET status = $1, updated_at = NOW()
-        WHERE (meta_template_name = $2 OR name = $2) AND status != $1
+        UPDATE templates SET status = $1, meta_has_image_header = $3, updated_at = NOW()
+        WHERE (meta_template_name = $2 OR name = $2) AND (status != $1 OR meta_has_image_header != $3)
         RETURNING id
-      `, [status, mt.name]);
+      `, [status, mt.name, hasImageHeader]);
       updated += r.rowCount;
     }
     res.json({ success: true, meta_count: metaTemplates.length, updated });

@@ -79,7 +79,7 @@ router.post('/:id/run-now', async (req, res) => {
   try {
     const sc = await db.query(`
       SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
-        t.variables AS template_variables, t.header_image_url
+        t.variables AS template_variables, t.header_image_url, t.meta_has_image_header
       FROM scheduled_campaigns sc
       LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.id = $1
@@ -93,6 +93,8 @@ router.post('/:id/run-now', async (req, res) => {
     }
 
     const hasVars = (campaign.template_variables || []).length > 0;
+    // Only send image header if Meta template actually has one
+    const headerImageUrl = campaign.meta_has_image_header ? campaign.header_image_url : null;
 
     const contacts = await db.query(`
       SELECT c.id, c.name, c.phone FROM contacts c
@@ -109,7 +111,7 @@ router.post('/:id/run-now', async (req, res) => {
           templateName: campaign.meta_template_name,
           language: campaign.language || 'mr',
           variables: hasVars ? [contact.name] : [],
-          headerImageUrl: campaign.header_image_url || null,
+          headerImageUrl,
         });
         results.sent++;
 
@@ -140,7 +142,7 @@ router.post('/:id/test', async (req, res) => {
 
     const sc = await db.query(`
       SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
-        t.variables AS template_variables, t.header_image_url
+        t.variables AS template_variables, t.header_image_url, t.meta_has_image_header
       FROM scheduled_campaigns sc
       LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.id = $1
@@ -155,6 +157,8 @@ router.post('/:id/test', async (req, res) => {
 
     // Only pass variables if template actually uses them
     const hasVars = (campaign.template_variables || []).length > 0;
+    // Only send image header if Meta actually approved template with image
+    const headerImageUrl = campaign.meta_has_image_header ? campaign.header_image_url : null;
 
     const results = [];
     for (const item of phones) {
@@ -164,7 +168,7 @@ router.post('/:id/test', async (req, res) => {
           templateName: campaign.meta_template_name,
           language: campaign.language || 'mr',
           variables: hasVars ? [item.name || 'Test User'] : [],
-          headerImageUrl: campaign.header_image_url || null,
+          headerImageUrl,
         });
         results.push({ phone: item.phone, status: 'sent' });
       } catch (err) {

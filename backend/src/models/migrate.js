@@ -135,6 +135,10 @@ async function runMigrations(client) {
   await client.query(`
     ALTER TABLE templates ADD COLUMN IF NOT EXISTS header_image_url TEXT
   `);
+  // Track if Meta template has image header
+  await client.query(`
+    ALTER TABLE templates ADD COLUMN IF NOT EXISTS meta_has_image_header BOOLEAN DEFAULT FALSE
+  `);
   // Add scheduled_campaigns table
   await client.query(`
     CREATE TABLE IF NOT EXISTS scheduled_campaigns (
