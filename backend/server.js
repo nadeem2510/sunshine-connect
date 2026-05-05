@@ -52,21 +52,26 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Sunshine Connect' });
 });
 
-app.get('/api/imgtest', async (req, res) => {
+// Diagnostic: test WABA Upload API (template handle) + Media API (message send)
+const BANNER_URL = 'https://sunshine-connect-production.up.railway.app/images/esic_banner_small.jpg';
+
+app.get('/api/diag-upload', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
-    const handle = await whatsapp.uploadImageForTemplate('https://sunshine-connect-production.up.railway.app/images/esic_banner.png');
-    res.json({ success: true, handle });
+    const handle = await whatsapp.uploadImageForTemplate(BANNER_URL);
+    res.json({ success: true, type: 'waba_upload', handle });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, type: 'waba_upload', error: err.message });
   }
 });
 
-app.get('/api/test-img', async (req, res) => {
+app.get('/api/diag-media', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
-    const handle = await whatsapp.uploadImageForTemplate('https://sunshine-connect-production.up.railway.app/images/esic_banner.png');
-    res.json({ success: true, handle });
+    const mediaId = await whatsapp.uploadImageAsMedia(BANNER_URL);
+    res.json({ success: true, type: 'media_api', media_id: mediaId });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, type: 'media_api', error: err.message });
   }
 });
 

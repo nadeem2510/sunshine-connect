@@ -7,7 +7,7 @@ const router = express.Router();
 // Test media API image upload (v2)
 router.post('/test-media-upload', async (req, res) => {
   try {
-    const imageUrl = (req.body && req.body.image_url) || 'https://sunshine-connect-production.up.railway.app/images/esic_banner.png';
+    const imageUrl = (req.body && req.body.image_url) || 'https://sunshine-connect-production.up.railway.app/images/esic_banner_small.jpg';
     const mediaId = await whatsapp.uploadImageAsMedia(imageUrl);
     res.json({ success: true, media_id: mediaId, image_url: imageUrl, v: 2 });
   } catch (err) {
