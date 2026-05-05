@@ -100,11 +100,19 @@ async function submitTemplateForApproval(template) {
     components,
   };
 
-  const response = await axios.post(
-    `${BASE_URL}/${WABA_ID}/message_templates`,
-    payload,
-    { headers: getHeaders() }
-  );
+  let response;
+  try {
+    response = await axios.post(
+      `${BASE_URL}/${WABA_ID}/message_templates`,
+      payload,
+      { headers: getHeaders() }
+    );
+  } catch (err) {
+    const metaMsg = err.response?.data?.error?.message || err.message;
+    const metaCode = err.response?.data?.error?.code || '';
+    console.error('[Meta Template] Submit error:', JSON.stringify(err.response?.data || {}));
+    throw new Error(`Meta: ${metaMsg} (code ${metaCode})`);
+  }
 
   return { ...response.data, name: metaName };
 }
