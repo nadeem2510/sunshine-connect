@@ -4,6 +4,17 @@ const whatsapp = require('../services/whatsapp');
 
 const router = express.Router();
 
+// Test image upload to Meta
+router.post('/test-image-upload', async (req, res) => {
+  try {
+    const imageUrl = (req.body && req.body.image_url) || 'https://sunshine-connect-production.up.railway.app/images/esic_banner.png';
+    const handle = await whatsapp.uploadImageForTemplate(imageUrl);
+    res.json({ success: true, handle, image_url: imageUrl });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // List templates
 router.get('/', async (req, res) => {
   try {
@@ -167,17 +178,6 @@ router.post('/:id/preview', async (req, res) => {
     res.json({ preview, original: tmpl.rows[0].body_text });
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-});
-
-// Test image upload to Meta (for debugging template header)
-router.post('/test-image-upload', async (req, res) => {
-  try {
-    const imageUrl = req.body.image_url || 'https://sunshine-connect-production.up.railway.app/images/esic_banner.png';
-    const handle = await whatsapp.uploadImageForTemplate(imageUrl);
-    res.json({ success: true, handle, image_url: imageUrl });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
   }
 });
 
