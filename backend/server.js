@@ -31,6 +31,9 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500 });
 app.use('/api/', limiter);
 
+// Serve public images (template headers etc.)
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
+
 app.use('/api/contacts', contactsRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/templates', templatesRouter);
