@@ -170,6 +170,17 @@ router.post('/:id/preview', async (req, res) => {
   }
 });
 
+// Test image upload to Meta (for debugging template header)
+router.post('/test-image-upload', async (req, res) => {
+  try {
+    const imageUrl = req.body.image_url || 'https://sunshine-connect-production.up.railway.app/images/esic_banner.png';
+    const handle = await whatsapp.uploadImageForTemplate(imageUrl);
+    res.json({ success: true, handle, image_url: imageUrl });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Debug: get raw Meta template components
 router.get('/meta-components/:name', async (req, res) => {
   try {

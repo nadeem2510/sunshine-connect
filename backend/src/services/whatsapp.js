@@ -291,5 +291,6 @@ module.exports = {
   deleteTemplateFromMeta,
   getHealthStatus,
   getTemplatesFromMeta,
+  uploadImageForTemplate,
   randomDelay,
 };
