@@ -11,7 +11,13 @@ router.post('/test-image-upload', async (req, res) => {
     const handle = await whatsapp.uploadImageForTemplate(imageUrl);
     res.json({ success: true, handle, image_url: imageUrl });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const metaDetail = err.response?.data || null;
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      meta_error: metaDetail,
+      stack: err.stack?.split('\n').slice(0, 3),
+    });
   }
 });
 
