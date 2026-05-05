@@ -79,7 +79,7 @@ router.post('/:id/run-now', async (req, res) => {
   try {
     const sc = await db.query(`
       SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
-        t.variables AS template_variables
+        t.variables AS template_variables, t.header_image_url
       FROM scheduled_campaigns sc
       LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.id = $1
@@ -109,6 +109,7 @@ router.post('/:id/run-now', async (req, res) => {
           templateName: campaign.meta_template_name,
           language: campaign.language || 'mr',
           variables: hasVars ? [contact.name] : [],
+          headerImageUrl: campaign.header_image_url || null,
         });
         results.sent++;
 
@@ -139,7 +140,7 @@ router.post('/:id/test', async (req, res) => {
 
     const sc = await db.query(`
       SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
-        t.variables AS template_variables
+        t.variables AS template_variables, t.header_image_url
       FROM scheduled_campaigns sc
       LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.id = $1
@@ -163,6 +164,7 @@ router.post('/:id/test', async (req, res) => {
           templateName: campaign.meta_template_name,
           language: campaign.language || 'mr',
           variables: hasVars ? [item.name || 'Test User'] : [],
+          headerImageUrl: campaign.header_image_url || null,
         });
         results.push({ phone: item.phone, status: 'sent' });
       } catch (err) {

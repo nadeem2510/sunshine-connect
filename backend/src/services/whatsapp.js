@@ -15,12 +15,26 @@ function randomDelay(min = 1000, max = 5000) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function sendTemplateMessage({ phone, templateName, language = 'en', variables = [] }) {
+async function sendTemplateMessage({ phone, templateName, language = 'en', variables = [], headerImageUrl = null }) {
   await randomDelay(1000, 4000);
 
-  const components = variables.length > 0
-    ? [{ type: 'body', parameters: variables.map(v => ({ type: 'text', text: String(v) })) }]
-    : [];
+  const components = [];
+
+  // Add image header component if template has one
+  if (headerImageUrl) {
+    components.push({
+      type: 'header',
+      parameters: [{ type: 'image', image: { link: headerImageUrl } }],
+    });
+  }
+
+  // Add body component if template has variables
+  if (variables.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: variables.map(v => ({ type: 'text', text: String(v) })),
+    });
+  }
 
   const payload = {
     messaging_product: 'whatsapp',
