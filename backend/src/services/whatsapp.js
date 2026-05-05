@@ -133,29 +133,47 @@ async function uploadImageForTemplate(imageUrl) {
   const contentType = imgResp.headers['content-type'] || 'image/jpeg';
   const fileSize = imgBuffer.length;
 
+  console.log(`[Meta Upload] Downloading image: ${imageUrl} (${fileSize} bytes, ${contentType})`);
+
   // Step 1: Create upload session
-  const sessionResp = await axios.post(
-    `https://graph.facebook.com/v19.0/${WABA_ID}/uploads`,
-    null,
-    {
-      params: { file_length: fileSize, file_type: contentType, access_token: TOKEN },
-    }
-  );
+  let sessionResp;
+  try {
+    sessionResp = await axios.post(
+      `https://graph.facebook.com/v19.0/${WABA_ID}/uploads`,
+      null,
+      { params: { file_length: fileSize, file_type: contentType, access_token: TOKEN } }
+    );
+  } catch (err) {
+    const metaErr = err.response?.data?.error || {};
+    console.error('[Meta Upload] Session creation failed:', JSON.stringify(err.response?.data || {}));
+    throw new Error(`Upload session failed: ${metaErr.message || err.message} (code ${metaErr.code})`);
+  }
   const uploadId = sessionResp.data.id;
+  console.log(`[Meta Upload] Session created: ${uploadId}`);
 
   // Step 2: Upload binary data
-  const uploadResp = await axios.post(
-    `https://graph.facebook.com/v19.0/${uploadId}`,
-    imgBuffer,
-    {
-      headers: {
-        Authorization: `OAuth ${TOKEN}`,
-        'Content-Type': contentType,
-        file_offset: 0,
-      },
-    }
-  );
+  let uploadResp;
+  try {
+    uploadResp = await axios.post(
+      `https://graph.facebook.com/v19.0/${uploadId}`,
+      imgBuffer,
+      {
+        headers: {
+          Authorization: `OAuth ${TOKEN}`,
+          'Content-Type': contentType,
+          file_offset: '0',
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      }
+    );
+  } catch (err) {
+    const metaErr = err.response?.data?.error || {};
+    console.error('[Meta Upload] Binary upload failed:', JSON.stringify(err.response?.data || {}));
+    throw new Error(`Upload failed: ${metaErr.message || err.message} (code ${metaErr.code})`);
+  }
 
+  console.log(`[Meta Upload] Handle received: ${uploadResp.data.h}`);
   return uploadResp.data.h; // The handle
 }
 
