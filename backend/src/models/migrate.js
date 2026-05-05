@@ -119,10 +119,18 @@ async function initDB() {
   const client = await db.getClient();
   try {
     await client.query(SCHEMA);
+    await runMigrations(client);
     await seedDefaultGroups(client);
   } finally {
     client.release();
   }
+}
+
+async function runMigrations(client) {
+  // Add buttons column to templates if not exists
+  await client.query(`
+    ALTER TABLE templates ADD COLUMN IF NOT EXISTS buttons JSONB DEFAULT '[]'
+  `);
 }
 
 async function seedDefaultGroups(client) {

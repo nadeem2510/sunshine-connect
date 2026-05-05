@@ -37,7 +37,7 @@ router.get('/:id', async (req, res) => {
 // Create template
 router.post('/', async (req, res) => {
   try {
-    const { name, category = 'MARKETING', language = 'en', body_text, variables = [], header_text, footer_text } = req.body;
+    const { name, category = 'MARKETING', language = 'mr', body_text, variables = [], header_text, footer_text, buttons = [] } = req.body;
     if (!name || !body_text) return res.status(400).json({ error: 'Name and body_text are required' });
 
     // Extract variables from body like {{1}}, {{2}}
@@ -45,9 +45,9 @@ router.post('/', async (req, res) => {
     const mergedVars = variables.length > 0 ? variables : extracted;
 
     const result = await db.query(
-      `INSERT INTO templates (name, category, language, body_text, variables, header_text, footer_text, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft') RETURNING *`,
-      [name, category, language, body_text, JSON.stringify(mergedVars), header_text, footer_text]
+      `INSERT INTO templates (name, category, language, body_text, variables, header_text, footer_text, buttons, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'draft') RETURNING *`,
+      [name, category, language, body_text, JSON.stringify(mergedVars), header_text, footer_text, JSON.stringify(buttons)]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -64,7 +64,7 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Approved templates cannot be edited. Clone it instead.' });
     }
 
-    const { name, category, language, body_text, variables, header_text, footer_text } = req.body;
+    const { name, category, language, body_text, variables, header_text, footer_text, buttons } = req.body;
     const extracted = body_text ? [...new Set((body_text.match(/\{\{(\d+)\}\}/g) || []))] : [];
     const mergedVars = variables ? variables : extracted;
 
@@ -73,9 +73,12 @@ router.put('/:id', async (req, res) => {
         name = COALESCE($1, name), category = COALESCE($2, category),
         language = COALESCE($3, language), body_text = COALESCE($4, body_text),
         variables = COALESCE($5, variables), header_text = COALESCE($6, header_text),
-        footer_text = COALESCE($7, footer_text), status = 'draft', updated_at = NOW()
-       WHERE id = $8 RETURNING *`,
-      [name, category, language, body_text, JSON.stringify(mergedVars), header_text, footer_text, req.params.id]
+        footer_text = COALESCE($7, footer_text),
+        buttons = COALESCE($8, buttons),
+        status = 'draft', updated_at = NOW()
+       WHERE id = $9 RETURNING *`,
+      [name, category, language, body_text, JSON.stringify(mergedVars), header_text, footer_text,
+       buttons ? JSON.stringify(buttons) : null, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {

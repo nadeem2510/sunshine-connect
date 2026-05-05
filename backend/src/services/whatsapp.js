@@ -81,10 +81,22 @@ async function submitTemplateForApproval(template) {
     .replace(/_+/g, '_')
     .slice(0, 60);
 
+  // Add buttons if present
+  const buttons = Array.isArray(template.buttons) ? template.buttons : [];
+  if (buttons.length > 0) {
+    const buttonComponents = buttons.map(btn => {
+      if (btn.type === 'PHONE_NUMBER') return { type: 'PHONE_NUMBER', text: btn.text, phone_number: btn.value };
+      if (btn.type === 'URL') return { type: 'URL', text: btn.text, url: btn.value };
+      if (btn.type === 'QUICK_REPLY') return { type: 'QUICK_REPLY', text: btn.text };
+      return null;
+    }).filter(Boolean);
+    if (buttonComponents.length > 0) components.push({ type: 'BUTTONS', buttons: buttonComponents });
+  }
+
   const payload = {
     name: metaName,
     category: template.category || 'MARKETING',
-    language: template.language || 'en',
+    language: template.language || 'mr',
     components,
   };
 
