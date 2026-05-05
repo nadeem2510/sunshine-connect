@@ -52,7 +52,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Sunshine Connect' });
 });
 
-app.post('/api/test-img', async (req, res) => {
+app.get('/api/test-img', async (req, res) => {
   try {
     const handle = await whatsapp.uploadImageForTemplate('https://sunshine-connect-production.up.railway.app/images/esic_banner.png');
     res.json({ success: true, handle });
