@@ -4,12 +4,12 @@ const whatsapp = require('../services/whatsapp');
 
 const router = express.Router();
 
-// Test image upload to Meta media API
-router.post('/test-image-upload', async (req, res) => {
+// Test media API image upload (v2)
+router.post('/test-media-upload', async (req, res) => {
   try {
     const imageUrl = (req.body && req.body.image_url) || 'https://sunshine-connect-production.up.railway.app/images/esic_banner.png';
     const mediaId = await whatsapp.uploadImageAsMedia(imageUrl);
-    res.json({ success: true, media_id: mediaId, image_url: imageUrl });
+    res.json({ success: true, media_id: mediaId, image_url: imageUrl, v: 2 });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
