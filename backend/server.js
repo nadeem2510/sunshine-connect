@@ -52,6 +52,17 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Sunshine Connect' });
 });
 
+// Direct test: upload image to WhatsApp media API
+app.post('/api/test-media', async (req, res) => {
+  try {
+    const imageUrl = 'https://sunshine-connect-production.up.railway.app/images/esic_banner.png';
+    const mediaId = await whatsapp.uploadImageAsMedia(imageUrl);
+    res.json({ success: true, media_id: mediaId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Serve React frontend in production
 if (process.env.NODE_ENV === 'production') {
   const frontendDist = path.join(__dirname, '../frontend/dist');
