@@ -78,7 +78,8 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/run-now', async (req, res) => {
   try {
     const sc = await db.query(`
-      SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status
+      SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
+        t.variables AS template_variables
       FROM scheduled_campaigns sc
       LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.id = $1
@@ -91,8 +92,10 @@ router.post('/:id/run-now', async (req, res) => {
       return res.status(400).json({ error: 'Template is not approved yet. Cannot send.' });
     }
 
+    const hasVars = (campaign.template_variables || []).length > 0;
+
     const contacts = await db.query(`
-      SELECT c.name, c.phone FROM contacts c
+      SELECT c.id, c.name, c.phone FROM contacts c
       JOIN contact_groups cg ON cg.contact_id = c.id
       WHERE cg.group_id = $1 AND c.opted_out = FALSE
     `, [campaign.group_id]);
@@ -105,7 +108,7 @@ router.post('/:id/run-now', async (req, res) => {
           phone: contact.phone,
           templateName: campaign.meta_template_name,
           language: campaign.language || 'mr',
-          variables: [contact.name],
+          variables: hasVars ? [contact.name] : [],
         });
         results.sent++;
 
@@ -135,7 +138,8 @@ router.post('/:id/test', async (req, res) => {
     if (!phones.length) return res.status(400).json({ error: 'phones array required' });
 
     const sc = await db.query(`
-      SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status
+      SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
+        t.variables AS template_variables
       FROM scheduled_campaigns sc
       LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.id = $1
@@ -148,6 +152,9 @@ router.post('/:id/test', async (req, res) => {
       return res.status(400).json({ error: 'Template not approved yet. Wait for Meta approval.' });
     }
 
+    // Only pass variables if template actually uses them
+    const hasVars = (campaign.template_variables || []).length > 0;
+
     const results = [];
     for (const item of phones) {
       try {
@@ -155,11 +162,12 @@ router.post('/:id/test', async (req, res) => {
           phone: item.phone,
           templateName: campaign.meta_template_name,
           language: campaign.language || 'mr',
-          variables: [item.name || 'Test User'],
+          variables: hasVars ? [item.name || 'Test User'] : [],
         });
         results.push({ phone: item.phone, status: 'sent' });
       } catch (err) {
-        results.push({ phone: item.phone, status: 'failed', error: err.message });
+        const errMsg = err.response?.data?.error?.message || err.message;
+        results.push({ phone: item.phone, status: 'failed', error: errMsg });
       }
     }
 

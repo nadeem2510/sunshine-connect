@@ -83,7 +83,8 @@ async function runScheduledCampaigns() {
 
     // Find active campaigns scheduled for this time (within 1-min window)
     const campaigns = await db.query(`
-      SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status
+      SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
+        t.variables AS template_variables
       FROM scheduled_campaigns sc
       LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.is_active = TRUE
@@ -106,6 +107,7 @@ async function runScheduledCampaigns() {
       `, [campaign.group_id]);
 
       let sent = 0, failed = 0;
+      const hasVars = (campaign.template_variables || []).length > 0;
 
       for (const contact of contacts.rows) {
         try {
@@ -113,7 +115,7 @@ async function runScheduledCampaigns() {
             phone: contact.phone,
             templateName: campaign.meta_template_name,
             language: campaign.language || 'mr',
-            variables: [contact.name],
+            variables: hasVars ? [contact.name] : [],
           });
 
           await db.query(`
