@@ -108,10 +108,14 @@ async function submitTemplateForApproval(template) {
       { headers: getHeaders() }
     );
   } catch (err) {
-    const metaMsg = err.response?.data?.error?.message || err.message;
-    const metaCode = err.response?.data?.error?.code || '';
+    const errData = err.response?.data?.error || {};
+    const metaMsg = errData.message || err.message;
+    const metaCode = errData.code || '';
+    const metaSubcode = errData.error_subcode || '';
+    const metaData = errData.error_data || '';
     console.error('[Meta Template] Submit error:', JSON.stringify(err.response?.data || {}));
-    throw new Error(`Meta: ${metaMsg} (code ${metaCode})`);
+    console.error('[Meta Template] Payload was:', JSON.stringify(payload));
+    throw new Error(`Meta: ${metaMsg} (code ${metaCode}, subcode ${metaSubcode}, data: ${metaData})`);
   }
 
   return { ...response.data, name: metaName };
