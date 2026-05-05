@@ -195,11 +195,21 @@ async function submitTemplateForApproval(template) {
     try {
       let handle;
       try {
+        // Try 1: Resumable Upload API (requires whatsapp_business_management permission)
         handle = await uploadImageForTemplate(template.header_image_url);
+        console.log('[Meta Template] Got handle via Upload API:', handle);
       } catch (uploadErr) {
-        console.warn('[Meta Template] Handle upload failed, trying media API:', uploadErr.message);
-        // Fallback: upload via media API and use media_id as handle
-        handle = await uploadImageAsMedia(template.header_image_url);
+        console.warn('[Meta Template] Upload API failed:', uploadErr.message);
+        try {
+          // Try 2: Media API (PHONE_ID/media)
+          handle = await uploadImageAsMedia(template.header_image_url);
+          console.log('[Meta Template] Got media_id via Media API:', handle);
+        } catch (mediaErr) {
+          console.warn('[Meta Template] Media API also failed:', mediaErr.message);
+          // Try 3: Use URL directly in header_handle (newer Meta API versions support this)
+          handle = template.header_image_url;
+          console.log('[Meta Template] Using URL directly as handle:', handle);
+        }
       }
       components.push({
         type: 'HEADER',
@@ -207,7 +217,7 @@ async function submitTemplateForApproval(template) {
         example: { header_handle: [handle] },
       });
     } catch (err) {
-      console.error('[Meta] Image upload failed, falling back to text header:', err.message);
+      console.error('[Meta] All image methods failed:', err.message);
       if (template.header_text) {
         components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
       }
