@@ -75,6 +75,28 @@ app.get('/api/diag-media', async (req, res) => {
   }
 });
 
+// Diagnostic: test upload with alternate WABA ID (323867224139405 seen in WhatsApp Manager)
+app.get('/api/diag-upload2', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const axios = require('axios');
+  const TOKEN = process.env.WA_ACCESS_TOKEN;
+  const WABA_ALT = '323867224139405';
+  const API_VER = process.env.WA_API_VERSION || 'v19.0';
+  const results = { current_waba: process.env.WA_BUSINESS_ACCOUNT_ID, alt_waba: WABA_ALT };
+  try {
+    const resp = await axios.post(
+      `https://graph.facebook.com/${API_VER}/${WABA_ALT}/uploads`,
+      null,
+      { params: { file_length: 1000, file_type: 'image/jpeg', access_token: TOKEN }, headers: { Authorization: `Bearer ${TOKEN}` } }
+    );
+    results.alt_upload = { success: true, session_id: resp.data.id };
+  } catch (err) {
+    const e = err.response?.data?.error || {};
+    results.alt_upload = { success: false, error: e.message || err.message, code: e.code };
+  }
+  res.json(results);
+});
+
 // Serve React frontend in production
 if (process.env.NODE_ENV === 'production') {
   const frontendDist = path.join(__dirname, '../frontend/dist');
