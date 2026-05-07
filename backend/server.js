@@ -127,13 +127,11 @@ async function runScheduledCampaigns() {
     console.log(`[Scheduler] Checking campaigns for IST time: ${timeStr}`);
 
     // Find active campaigns scheduled for this time (within 1-min window)
+    // For rotation campaigns, join on the rotated template instead of template_id
     const campaigns = await db.query(`
-      SELECT sc.*, t.meta_template_name, t.language, t.body_text, t.status AS template_status,
-        t.variables AS template_variables, t.header_image_url, t.meta_has_image_header
+      SELECT sc.*
       FROM scheduled_campaigns sc
-      LEFT JOIN templates t ON t.id = sc.template_id
       WHERE sc.is_active = TRUE
-        AND t.status = 'approved'
         AND TO_CHAR(sc.schedule_time, 'HH24:MI') = $1
         AND (sc.last_run_at IS NULL OR sc.last_run_at < NOW() - INTERVAL '23 hours')
     `, [`${String(istH).padStart(2, '0')}:${String(istM).padStart(2, '0')}`]);
@@ -145,6 +143,35 @@ async function runScheduledCampaigns() {
     for (const campaign of campaigns.rows) {
       console.log(`[Scheduler] Running: "${campaign.name}"`);
 
+      // ── Template Rotation Logic ──────────────────────────────────────────
+      // If template_ids array is set, rotate through them daily using run_count
+      const rotationIds = Array.isArray(campaign.template_ids) && campaign.template_ids.length > 0
+        ? campaign.template_ids
+        : campaign.template_id ? [campaign.template_id] : [];
+
+      if (rotationIds.length === 0) {
+        console.warn(`[Scheduler] "${campaign.name}" has no templates — skipping`);
+        continue;
+      }
+
+      const rotationIndex = campaign.run_count % rotationIds.length;
+      const activeTemplateId = rotationIds[rotationIndex];
+      console.log(`[Scheduler] Rotation: day ${campaign.run_count + 1}, using template ${activeTemplateId} (index ${rotationIndex}/${rotationIds.length})`);
+
+      // Load the active template for today
+      const tmplRes = await db.query(
+        `SELECT meta_template_name, language, body_text, status, variables AS template_variables,
+                header_image_url, meta_has_image_header FROM templates WHERE id = $1`,
+        [activeTemplateId]
+      );
+
+      if (!tmplRes.rows[0] || tmplRes.rows[0].status !== 'approved') {
+        console.warn(`[Scheduler] Template ${activeTemplateId} not approved — skipping campaign`);
+        continue;
+      }
+
+      const tmpl = tmplRes.rows[0];
+
       const contacts = await db.query(`
         SELECT c.id, c.name, c.phone FROM contacts c
         JOIN contact_groups cg ON cg.contact_id = c.id
@@ -152,15 +179,15 @@ async function runScheduledCampaigns() {
       `, [campaign.group_id]);
 
       let sent = 0, failed = 0;
-      const hasVars = (campaign.template_variables || []).length > 0;
-      const headerImageUrl = campaign.meta_has_image_header ? campaign.header_image_url : null;
+      const hasVars = (tmpl.template_variables || []).length > 0;
+      const headerImageUrl = tmpl.meta_has_image_header ? tmpl.header_image_url : null;
 
       for (const contact of contacts.rows) {
         try {
           await whatsapp.sendTemplateMessage({
             phone: contact.phone,
-            templateName: campaign.meta_template_name,
-            language: campaign.language || 'mr',
+            templateName: tmpl.meta_template_name,
+            language: tmpl.language || 'mr',
             variables: hasVars ? [contact.name] : [],
             headerImageUrl,
           });

@@ -157,6 +157,10 @@ async function runMigrations(client) {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  // Add template_ids rotation array to scheduled_campaigns
+  await client.query(`
+    ALTER TABLE scheduled_campaigns ADD COLUMN IF NOT EXISTS template_ids JSONB DEFAULT '[]'
+  `);
 }
 
 async function seedDefaultGroups(client) {
