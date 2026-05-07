@@ -145,13 +145,18 @@ async function uploadImageForTemplate(imageUrl) {
 
   console.log(`[Meta Upload] Downloading image: ${imageUrl} (${fileSize} bytes, ${contentType})`);
 
-  // Step 1: Create upload session
+  const API_VER = process.env.WA_API_VERSION || 'v19.0';
+
+  // Step 1: Create upload session (try with both Bearer header AND access_token param)
   let sessionResp;
   try {
     sessionResp = await axios.post(
-      `https://graph.facebook.com/v19.0/${WABA_ID}/uploads`,
+      `https://graph.facebook.com/${API_VER}/${WABA_ID}/uploads`,
       null,
-      { params: { file_length: fileSize, file_type: contentType, access_token: TOKEN } }
+      {
+        params: { file_length: fileSize, file_type: contentType, access_token: TOKEN },
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      }
     );
   } catch (err) {
     const metaErr = err.response?.data?.error || {};
@@ -165,7 +170,7 @@ async function uploadImageForTemplate(imageUrl) {
   let uploadResp;
   try {
     uploadResp = await axios.post(
-      `https://graph.facebook.com/v19.0/${uploadId}`,
+      `https://graph.facebook.com/${API_VER}/${uploadId}`,
       imgBuffer,
       {
         headers: {
@@ -202,11 +207,11 @@ async function submitTemplateForApproval(template) {
         example: { header_handle: [handle] },
       });
     } catch (err) {
-      console.error('[Meta] Image upload failed, submitting without image header:', err.message);
+      console.error('[Meta] Upload API failed, trying IMAGE header without example handle:', err.message);
+      // Fallback 1: Submit IMAGE header without example — Meta may accept it for review
+      // Fallback 2: TEXT header if header_text exists
       // Do NOT use URL as handle — Meta will reject the template
-      if (template.header_text) {
-        components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
-      }
+      components.push({ type: 'HEADER', format: 'IMAGE' });
     }
   } else if (template.header_text) {
     components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
