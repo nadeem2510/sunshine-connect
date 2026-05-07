@@ -165,12 +165,24 @@ async function runScheduledCampaigns() {
         [activeTemplateId]
       );
 
-      if (!tmplRes.rows[0] || tmplRes.rows[0].status !== 'approved') {
-        console.warn(`[Scheduler] Template ${activeTemplateId} not approved — skipping campaign`);
-        continue;
-      }
+      let tmpl = tmplRes.rows[0];
 
-      const tmpl = tmplRes.rows[0];
+      // If today's template isn't approved yet, fall back to the first approved in the rotation
+      if (!tmpl || tmpl.status !== 'approved') {
+        console.warn(`[Scheduler] Template ${activeTemplateId} not approved — searching for fallback`);
+        const fallbackRes = await db.query(
+          `SELECT meta_template_name, language, body_text, status, variables AS template_variables,
+                  header_image_url, meta_has_image_header FROM templates
+           WHERE id = ANY($1) AND status = 'approved' LIMIT 1`,
+          [rotationIds]
+        );
+        if (!fallbackRes.rows[0]) {
+          console.warn(`[Scheduler] No approved template found in rotation — skipping campaign`);
+          continue;
+        }
+        tmpl = fallbackRes.rows[0];
+        console.log(`[Scheduler] Using fallback template: ${tmpl.meta_template_name}`);
+      }
 
       const contacts = await db.query(`
         SELECT c.id, c.name, c.phone FROM contacts c
