@@ -207,11 +207,14 @@ async function submitTemplateForApproval(template) {
         example: { header_handle: [handle] },
       });
     } catch (err) {
-      console.error('[Meta] Upload API failed, trying IMAGE header without example handle:', err.message);
-      // Fallback 1: Submit IMAGE header without example — Meta may accept it for review
-      // Fallback 2: TEXT header if header_text exists
-      // Do NOT use URL as handle — Meta will reject the template
-      components.push({ type: 'HEADER', format: 'IMAGE' });
+      console.error('[Meta] Upload API failed, trying IMAGE with URL example:', err.message);
+      // Fallback: Try providing the public image URL directly as the example
+      // Some Meta API versions accept header_url instead of header_handle
+      components.push({
+        type: 'HEADER',
+        format: 'IMAGE',
+        example: { header_url: [template.header_image_url] },
+      });
     }
   } else if (template.header_text) {
     components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
