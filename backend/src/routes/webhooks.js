@@ -23,7 +23,9 @@ router.get('/', (req, res) => {
 // Meta webhook events (POST)
 router.post('/', async (req, res) => {
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    // express.raw() gives a Buffer — must convert to string first
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.body;
+    const body = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
 
     if (body.object !== 'whatsapp_business_account') {
       return res.status(400).json({ error: 'Not a WhatsApp event' });
@@ -103,15 +105,14 @@ async function handleIncomingMessage(message) {
     return;
   }
 
-  // Log the reply in message_logs as an inbound note
+  // Log the reply in message_logs as an inbound note (save even for unknown contacts)
   const contact = await db.query('SELECT id FROM contacts WHERE phone = $1', [phone]);
-  if (contact.rows[0]) {
-    await db.query(
-      `INSERT INTO message_logs (contact_id, phone, message_body, status, wa_message_id)
-       VALUES ($1, $2, $3, 'inbound', $4)`,
-      [contact.rows[0].id, phone, message.text?.body || '[media]', message.id]
-    );
-  }
+  const contactId = contact.rows[0]?.id || null;
+  await db.query(
+    `INSERT INTO message_logs (contact_id, phone, message_body, status, wa_message_id)
+     VALUES ($1, $2, $3, 'inbound', $4)`,
+    [contactId, phone, message.text?.body || '[media]', message.id]
+  );
 
   // Check auto-replies
   await checkAutoReply(phone, text);
