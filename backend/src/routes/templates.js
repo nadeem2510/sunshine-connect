@@ -206,11 +206,15 @@ router.post('/sync-meta', async (req, res) => {
       const hasImageHeader = (mt.components || []).some(
         c => c.type === 'HEADER' && c.format === 'IMAGE'
       );
+      // Also update meta_template_name and meta_template_id so they're always in sync
       const r = await db.query(`
-        UPDATE templates SET status = $1, meta_has_image_header = $3, updated_at = NOW()
-        WHERE (meta_template_name = $2 OR name = $2) AND (status != $1 OR meta_has_image_header != $3)
+        UPDATE templates
+        SET status = $1, meta_has_image_header = $3,
+            meta_template_name = $2, meta_template_id = $4,
+            updated_at = NOW()
+        WHERE (meta_template_name = $2 OR name = $2)
         RETURNING id
-      `, [status, mt.name, hasImageHeader]);
+      `, [status, mt.name, hasImageHeader, mt.id]);
       updated += r.rowCount;
     }
     res.json({ success: true, meta_count: metaTemplates.length, updated });
