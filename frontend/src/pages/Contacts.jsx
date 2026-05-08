@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { contactsApi, groupsApi } from '../services/api';
+import { contactsApi, groupsApi, templatesApi, messagesApi } from '../services/api';
 import Modal from '../components/Modal';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,7 @@ export default function Contacts() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [sendTarget, setSendTarget] = useState(null); // contact to send message to
   const fileRef = useRef();
   const limit = 50;
 
@@ -124,6 +125,14 @@ export default function Contacts() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSendTarget(c)}
+                      disabled={c.opted_out}
+                      title="Send WhatsApp message"
+                      className="text-green-600 hover:underline text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      📤 Send
+                    </button>
                     <button onClick={() => { setEditing(c); setShowForm(true); }} className="text-primary-600 hover:underline text-xs">Edit</button>
                     <button onClick={() => handleOptToggle(c)} className="text-gray-500 hover:underline text-xs">
                       {c.opted_out ? 'Opt In' : 'Opt Out'}
@@ -154,6 +163,13 @@ export default function Contacts() {
           contact={editing}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); load(); }}
+        />
+      )}
+
+      {sendTarget && (
+        <SendMessageModal
+          contact={sendTarget}
+          onClose={() => setSendTarget(null)}
         />
       )}
     </div>
@@ -249,6 +265,108 @@ function ContactForm({ contact, groups, onClose, onSaved }) {
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Contact'}</button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+function SendMessageModal({ contact, onClose }) {
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    templatesApi.list({ status: 'approved', limit: 200 })
+      .then(r => {
+        const list = r.data.templates || r.data || [];
+        setTemplates(list.filter(t => t.status === 'approved'));
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = templates.filter(t =>
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
+    (t.body_text || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  async function handleSend() {
+    if (!selectedTemplate) return;
+    setSending(true);
+    try {
+      await messagesApi.send({ contact_id: contact.id, template_id: selectedTemplate.id });
+      toast.success(`✅ Message sent to ${contact.name}!`);
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Send failed');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <Modal title={`Send Message — ${contact.name}`} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="text-sm text-gray-500">
+          📱 Sending to: <span className="font-mono font-medium text-gray-700">+{contact.phone}</span>
+        </div>
+
+        {/* Template search */}
+        <input
+          className="input"
+          placeholder="Search templates…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+
+        {/* Template list */}
+        <div className="border border-gray-200 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+          {loading ? (
+            <div className="p-4 text-center text-sm text-gray-400">Loading templates…</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-4 text-center text-sm text-gray-400">No approved templates found</div>
+          ) : filtered.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setSelectedTemplate(t)}
+              className={`w-full text-left px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
+                selectedTemplate?.id === t.id
+                  ? 'bg-primary-50 border-l-4 border-l-primary-600'
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-sm text-gray-900">{t.name}</span>
+                <span className="text-xs text-gray-400 uppercase">{t.language}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{t.body_text}</p>
+            </button>
+          ))}
+        </div>
+
+        {/* Preview selected */}
+        {selectedTemplate && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+            <p className="text-xs font-medium text-green-700 mb-1">📋 Selected: {selectedTemplate.name}</p>
+            <p className="text-xs text-green-800 leading-snug whitespace-pre-wrap line-clamp-3">
+              {selectedTemplate.body_text?.replace('{{1}}', contact.name)}
+            </p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!selectedTemplate || sending}
+            className="btn-primary"
+          >
+            {sending ? 'Sending…' : '📤 Send Now'}
+          </button>
+        </div>
+      </div>
     </Modal>
   );
 }
