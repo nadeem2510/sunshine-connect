@@ -177,13 +177,50 @@ router.post('/inbox/:contactId/reply', async (req, res) => {
     if (!contact.rows[0]) return res.status(404).json({ error: 'Contact not found' });
     if (contact.rows[0].opted_out) return res.status(400).json({ error: 'Contact has opted out' });
 
+    // WhatsApp 24-hour customer service window check
+    // Free-text replies are only allowed within 24 hours of the contact's last inbound message
+    const lastInbound = await db.query(
+      `SELECT queued_at FROM message_logs
+       WHERE contact_id = $1 AND status = 'inbound'
+       ORDER BY queued_at DESC LIMIT 1`,
+      [contactId]
+    );
+
+    if (!lastInbound.rows[0]) {
+      return res.status(400).json({
+        error: 'window_expired',
+        message: 'Contact has not sent you a message yet. You can only send template messages to initiate a conversation.',
+      });
+    }
+
+    const lastMsgTime = new Date(lastInbound.rows[0].queued_at);
+    const hoursSinceLast = (Date.now() - lastMsgTime.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceLast > 24) {
+      return res.status(400).json({
+        error: 'window_expired',
+        message: `WhatsApp 24-hour window expired (last message was ${Math.floor(hoursSinceLast)} hours ago). Please send a template message instead.`,
+        hours_elapsed: Math.floor(hoursSinceLast),
+      });
+    }
+
     const log = await db.query(
       `INSERT INTO message_logs (contact_id, phone, message_body, status)
        VALUES ($1, $2, $3, 'queued') RETURNING *`,
       [contactId, contact.rows[0].phone, text.trim()]
     );
 
-    const waResult = await whatsapp.sendTextMessage({ phone: contact.rows[0].phone, text: text.trim() });
+    let waResult;
+    try {
+      waResult = await whatsapp.sendTextMessage({ phone: contact.rows[0].phone, text: text.trim() });
+    } catch (err) {
+      // Mark log as failed and return clear error
+      await db.query(
+        `UPDATE message_logs SET status = 'failed', error_message = $1, failed_at = NOW() WHERE id = $2`,
+        [err.message, log.rows[0].id]
+      );
+      return res.status(400).json({ error: 'send_failed', message: err.message });
+    }
 
     await db.query(
       `UPDATE message_logs SET status = 'sent', wa_message_id = $1, sent_at = NOW() WHERE id = $2`,

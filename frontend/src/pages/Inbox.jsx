@@ -49,6 +49,14 @@ export default function Inbox() {
     }
   }
 
+  // Check if last inbound message is within 24h
+  function getWindowStatus() {
+    const lastInbound = [...thread].reverse().find(m => m.status === 'inbound');
+    if (!lastInbound) return { open: false, hoursLeft: 0, hoursElapsed: 999 };
+    const elapsed = (Date.now() - new Date(lastInbound.queued_at).getTime()) / (1000 * 60 * 60);
+    return { open: elapsed < 24, hoursLeft: Math.max(0, 24 - elapsed).toFixed(1), hoursElapsed: Math.floor(elapsed) };
+  }
+
   async function sendReply(e) {
     e.preventDefault();
     if (!reply.trim()) return;
@@ -60,7 +68,12 @@ export default function Inbox() {
       await fetchConversations();
       toast.success('Message sent!');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Send failed');
+      const errData = err.response?.data;
+      if (errData?.error === 'window_expired') {
+        toast.error(errData.message || 'WhatsApp 24-hour window expired. Send a template instead.', { duration: 6000 });
+      } else {
+        toast.error(errData?.message || errData?.error || 'Send failed');
+      }
     } finally {
       setSending(false);
     }
@@ -179,25 +192,48 @@ export default function Inbox() {
             <div className="bg-white border-t border-gray-200 px-4 py-3">
               {contact?.opted_out ? (
                 <p className="text-center text-sm text-red-500 py-2">This contact has opted out — cannot send messages.</p>
-              ) : (
-                <form onSubmit={sendReply} className="flex gap-2 items-end">
-                  <textarea
-                    value={reply}
-                    onChange={e => setReply(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(e); } }}
-                    placeholder="Type a reply... (Enter to send)"
-                    rows={2}
-                    className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sending || !reply.trim()}
-                    className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors h-10"
-                  >
-                    {sending ? '...' : 'Send'}
-                  </button>
-                </form>
-              )}
+              ) : (() => {
+                const win = getWindowStatus();
+                return (
+                  <>
+                    {/* 24-hour window status bar */}
+                    {!win.open ? (
+                      <div className="mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-1.5">
+                        <span>⚠️</span>
+                        <span>
+                          <strong>24-hour window closed</strong> — last message was {win.hoursElapsed}h ago.
+                          WhatsApp only allows template replies now. Free text will be rejected.
+                        </span>
+                      </div>
+                    ) : parseFloat(win.hoursLeft) < 4 ? (
+                      <div className="mb-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700 flex items-center gap-1.5">
+                        <span>⏰</span>
+                        <span>Window closes in <strong>{win.hoursLeft}h</strong> — reply soon!</span>
+                      </div>
+                    ) : null}
+                    <form onSubmit={sendReply} className="flex gap-2 items-end">
+                      <textarea
+                        value={reply}
+                        onChange={e => setReply(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(e); } }}
+                        placeholder={win.open ? 'Type a reply... (Enter to send)' : 'Window closed — only templates allowed'}
+                        rows={2}
+                        disabled={!win.open}
+                        className={`flex-1 border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                          win.open ? 'border-gray-300' : 'border-amber-200 bg-amber-50 text-gray-400 cursor-not-allowed'
+                        }`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={sending || !reply.trim() || !win.open}
+                        className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors h-10"
+                      >
+                        {sending ? '...' : 'Send'}
+                      </button>
+                    </form>
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
