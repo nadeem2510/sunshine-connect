@@ -18,27 +18,31 @@ router.post('/send', async (req, res) => {
     if (!template.rows[0]) return res.status(404).json({ error: 'Template not found' });
     if (template.rows[0].status !== 'approved') return res.status(400).json({ error: 'Template not approved by Meta' });
 
-    // Build personalized body
-    let body = template.rows[0].body_text;
-    const mergedVars = { '1': contact.rows[0].name, ...variables };
-    Object.entries(mergedVars).forEach(([k, v]) => {
-      body = body.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v);
-    });
+    const tmpl = template.rows[0];
+    const ctct = contact.rows[0];
+
+    // Only pass variables if template actually uses them
+    const hasVars = (tmpl.variables || []).length > 0;
+    const sendVars = hasVars ? [ctct.name] : [];
+
+    // Only send image header if Meta approved template has one
+    const headerImageUrl = tmpl.meta_has_image_header ? tmpl.header_image_url : null;
 
     // Log the message
     const logResult = await db.query(
       `INSERT INTO message_logs (contact_id, template_id, phone, message_body, status)
        VALUES ($1, $2, $3, $4, 'queued') RETURNING *`,
-      [contact_id, template_id, contact.rows[0].phone, body]
+      [contact_id, template_id, ctct.phone, tmpl.body_text]
     );
     const log = logResult.rows[0];
 
     // Send via WhatsApp
     const waResult = await whatsapp.sendTemplateMessage({
-      phone: contact.rows[0].phone,
-      templateName: template.rows[0].meta_template_name,
-      language: template.rows[0].language,
-      variables: Object.values(mergedVars),
+      phone: ctct.phone,
+      templateName: tmpl.meta_template_name,
+      language: tmpl.language,
+      variables: sendVars,
+      headerImageUrl,
     });
 
     await db.query(
@@ -46,7 +50,7 @@ router.post('/send', async (req, res) => {
       [waResult.messages?.[0]?.id, log.id]
     );
 
-    res.json({ success: true, message_id: log.id, wa_message_id: waResult.messages?.[0]?.id });
+    res.json({ success: true, message_id: log.id, wa_message_id: waResult.messages?.[0]?.id, contact: ctct.name, template: tmpl.meta_template_name });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
