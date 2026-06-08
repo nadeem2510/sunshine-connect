@@ -161,6 +161,13 @@ async function runMigrations(client) {
   await client.query(`
     ALTER TABLE scheduled_campaigns ADD COLUMN IF NOT EXISTS template_ids JSONB DEFAULT '[]'
   `);
+  // Add interval_days for non-daily campaigns (e.g. every 3 days) + end date for fixed-duration campaigns
+  await client.query(`
+    ALTER TABLE scheduled_campaigns ADD COLUMN IF NOT EXISTS interval_days INTEGER DEFAULT 1
+  `);
+  await client.query(`
+    ALTER TABLE scheduled_campaigns ADD COLUMN IF NOT EXISTS end_date DATE
+  `);
 }
 
 async function seedDefaultGroups(client) {

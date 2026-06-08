@@ -128,12 +128,19 @@ async function runScheduledCampaigns() {
 
     // Find active campaigns scheduled for this time (within 1-min window)
     // For rotation campaigns, join on the rotated template instead of template_id
+    // interval_days controls cadence: 1 = daily, 3 = every 3 days, etc.
+    // Cooldown window = (interval_days * 24 - 1) hours, so a campaign never double-fires
+    // on the same cycle but isn't blocked by drift.
     const campaigns = await db.query(`
       SELECT sc.*
       FROM scheduled_campaigns sc
       WHERE sc.is_active = TRUE
         AND TO_CHAR(sc.schedule_time, 'HH24:MI') = $1
-        AND (sc.last_run_at IS NULL OR sc.last_run_at < NOW() - INTERVAL '23 hours')
+        AND (sc.end_date IS NULL OR CURRENT_DATE <= sc.end_date)
+        AND (
+          sc.last_run_at IS NULL
+          OR sc.last_run_at < NOW() - (GREATEST(COALESCE(sc.interval_days, 1), 1) * INTERVAL '24 hours' - INTERVAL '1 hour')
+        )
     `, [`${String(istH).padStart(2, '0')}:${String(istM).padStart(2, '0')}`]);
 
     if (campaigns.rows.length === 0) return;

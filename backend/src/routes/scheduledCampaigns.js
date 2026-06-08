@@ -27,14 +27,20 @@ router.get('/', async (req, res) => {
 // Create scheduled campaign
 router.post('/', async (req, res) => {
   try {
-    const { name, template_id, group_id, schedule_time = '21:00:00', is_daily = true } = req.body;
-    if (!name || !template_id || !group_id) {
-      return res.status(400).json({ error: 'name, template_id, group_id are required' });
+    const {
+      name, template_id, template_ids, group_id, schedule_time = '21:00:00',
+      is_daily = true, interval_days = 1, end_date = null,
+    } = req.body;
+    if (!name || (!template_id && !(template_ids && template_ids.length)) || !group_id) {
+      return res.status(400).json({ error: 'name, template_id (or template_ids), group_id are required' });
     }
     const result = await db.query(`
-      INSERT INTO scheduled_campaigns (name, template_id, group_id, schedule_time, is_daily, is_active)
-      VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING *
-    `, [name, template_id, group_id, schedule_time, is_daily]);
+      INSERT INTO scheduled_campaigns
+        (name, template_id, template_ids, group_id, schedule_time, is_daily, interval_days, end_date, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE) RETURNING *
+    `, [name, template_id || (template_ids ? template_ids[0] : null),
+        template_ids ? JSON.stringify(template_ids) : '[]',
+        group_id, schedule_time, is_daily, interval_days, end_date]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -44,7 +50,10 @@ router.post('/', async (req, res) => {
 // Update scheduled campaign
 router.put('/:id', async (req, res) => {
   try {
-    const { name, template_id, template_ids, group_id, schedule_time, is_daily, is_active } = req.body;
+    const {
+      name, template_id, template_ids, group_id, schedule_time,
+      is_daily, is_active, interval_days, end_date,
+    } = req.body;
     const result = await db.query(`
       UPDATE scheduled_campaigns SET
         name = COALESCE($1, name),
@@ -54,10 +63,12 @@ router.put('/:id', async (req, res) => {
         schedule_time = COALESCE($5, schedule_time),
         is_daily = COALESCE($6, is_daily),
         is_active = COALESCE($7, is_active),
+        interval_days = COALESCE($8, interval_days),
+        end_date = COALESCE($9, end_date),
         updated_at = NOW()
-      WHERE id = $8 RETURNING *
+      WHERE id = $10 RETURNING *
     `, [name, template_id, template_ids ? JSON.stringify(template_ids) : null,
-        group_id, schedule_time, is_daily, is_active, req.params.id]);
+        group_id, schedule_time, is_daily, is_active, interval_days, end_date, req.params.id]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
   } catch (err) {
