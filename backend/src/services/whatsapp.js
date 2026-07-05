@@ -136,6 +136,20 @@ async function sendTextMessage({ phone, text }) {
   return response.data;
 }
 
+// The Resumable Upload API lives on the APP node, not the WABA — resolve the
+// app id from the access token once and cache it.
+let cachedAppId = null;
+async function getAppId() {
+  if (cachedAppId) return cachedAppId;
+  const API_VER = process.env.WA_API_VERSION || 'v19.0';
+  const resp = await axios.get(`https://graph.facebook.com/${API_VER}/app`, {
+    params: { access_token: TOKEN },
+  });
+  cachedAppId = resp.data.id;
+  console.log(`[Meta Upload] Resolved app id: ${cachedAppId}`);
+  return cachedAppId;
+}
+
 async function uploadImageForTemplate(imageUrl) {
   // Download the image and upload to Meta to get a permanent handle
   const imgResp = await axios.get(imageUrl, { responseType: 'arraybuffer' });
@@ -146,12 +160,13 @@ async function uploadImageForTemplate(imageUrl) {
   console.log(`[Meta Upload] Downloading image: ${imageUrl} (${fileSize} bytes, ${contentType})`);
 
   const API_VER = process.env.WA_API_VERSION || 'v19.0';
+  const appId = await getAppId();
 
   // Step 1: Create upload session (try with both Bearer header AND access_token param)
   let sessionResp;
   try {
     sessionResp = await axios.post(
-      `https://graph.facebook.com/${API_VER}/${WABA_ID}/uploads`,
+      `https://graph.facebook.com/${API_VER}/${appId}/uploads`,
       null,
       {
         params: { file_length: fileSize, file_type: contentType, access_token: TOKEN },
@@ -196,21 +211,16 @@ async function submitTemplateForApproval(template) {
   const components = [];
 
   if (template.header_image_url) {
-    // IMAGE header — try Upload API first, fall back to Media API
-    try {
-      // Upload image via Resumable Upload API to get handle
-      const handle = await uploadImageForTemplate(template.header_image_url);
-      console.log('[Meta Template] Got handle via Upload API:', handle);
-      components.push({
-        type: 'HEADER',
-        format: 'IMAGE',
-        example: { header_handle: [handle] },
-      });
-    } catch (err) {
-      console.error('[Meta] Upload API failed — submitting without image header:', err.message);
-      // Skip image header entirely when upload API is unavailable.
-      // Template will be BODY+FOOTER+BUTTONS only — approved quickly by Meta.
-    }
+    // IMAGE header — upload via Resumable Upload API to get handle.
+    // Fail loudly: silently dropping the header gets a text-only template
+    // approved on Meta that can never be upgraded to include the image.
+    const handle = await uploadImageForTemplate(template.header_image_url);
+    console.log('[Meta Template] Got handle via Upload API:', handle);
+    components.push({
+      type: 'HEADER',
+      format: 'IMAGE',
+      example: { header_handle: [handle] },
+    });
   } else if (template.header_text) {
     components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
   }
