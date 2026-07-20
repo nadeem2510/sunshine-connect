@@ -167,7 +167,7 @@ async function runScheduledCampaigns() {
 
       // Load the active template for today
       const tmplRes = await db.query(
-        `SELECT meta_template_name, language, body_text, status, variables AS template_variables,
+        `SELECT id, meta_template_name, language, body_text, status, variables AS template_variables,
                 header_image_url, meta_has_image_header FROM templates WHERE id = $1`,
         [activeTemplateId]
       );
@@ -178,7 +178,7 @@ async function runScheduledCampaigns() {
       if (!tmpl || tmpl.status !== 'approved') {
         console.warn(`[Scheduler] Template ${activeTemplateId} not approved — searching for fallback`);
         const fallbackRes = await db.query(
-          `SELECT meta_template_name, language, body_text, status, variables AS template_variables,
+          `SELECT id, meta_template_name, language, body_text, status, variables AS template_variables,
                   header_image_url, meta_has_image_header FROM templates
            WHERE id = ANY($1) AND status = 'approved' LIMIT 1`,
           [rotationIds]
@@ -203,7 +203,7 @@ async function runScheduledCampaigns() {
 
       for (const contact of contacts.rows) {
         try {
-          await whatsapp.sendTemplateMessage({
+          const waResult = await whatsapp.sendTemplateMessage({
             phone: contact.phone,
             templateName: tmpl.meta_template_name,
             language: tmpl.language || 'mr',
@@ -211,10 +211,11 @@ async function runScheduledCampaigns() {
             headerImageUrl,
           });
 
+          // Store Meta's message id so webhook delivered/read statuses can match
           await db.query(`
-            INSERT INTO message_logs (contact_id, template_id, phone, status, sent_at)
-            VALUES ($1, $2, $3, 'sent', NOW())
-          `, [contact.id, campaign.template_id, contact.phone]);
+            INSERT INTO message_logs (contact_id, template_id, phone, status, wa_message_id, sent_at)
+            VALUES ($1, $2, $3, 'sent', $4, NOW())
+          `, [contact.id, tmpl.id, contact.phone, waResult?.messages?.[0]?.id || null]);
 
           sent++;
         } catch (err) {
@@ -222,7 +223,7 @@ async function runScheduledCampaigns() {
           await db.query(`
             INSERT INTO message_logs (contact_id, template_id, phone, status, error_message, failed_at)
             VALUES ($1, $2, $3, 'failed', $4, NOW())
-          `, [contact.id, campaign.template_id, contact.phone, err.message]);
+          `, [contact.id, tmpl.id, contact.phone, err.message]);
         }
       }
 
