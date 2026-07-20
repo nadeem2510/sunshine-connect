@@ -141,7 +141,7 @@ router.post('/:id/run-now', async (req, res) => {
 
     for (const contact of contacts.rows) {
       try {
-        await whatsapp.sendTemplateMessage({
+        const waResult = await whatsapp.sendTemplateMessage({
           phone: contact.phone,
           templateName: tmpl.meta_template_name,
           language: tmpl.language || 'mr',
@@ -150,11 +150,12 @@ router.post('/:id/run-now', async (req, res) => {
         });
         results.sent++;
 
-        // Direct INSERT with known contact.id — no fragile sub-SELECT
+        // Direct INSERT with known contact.id — no fragile sub-SELECT.
+        // wa_message_id lets webhook delivered/read statuses match this row.
         await db.query(
-          `INSERT INTO message_logs (contact_id, template_id, phone, status, sent_at)
-           VALUES ($1, $2, $3, 'sent', NOW())`,
-          [contact.id, tmpl.id, contact.phone]
+          `INSERT INTO message_logs (contact_id, template_id, phone, status, wa_message_id, sent_at)
+           VALUES ($1, $2, $3, 'sent', $4, NOW())`,
+          [contact.id, tmpl.id, contact.phone, waResult?.messages?.[0]?.id || null]
         );
       } catch (err) {
         results.failed++;
